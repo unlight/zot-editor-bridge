@@ -7,6 +7,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -119,6 +121,7 @@ func (b *bridge) sessionState() (cwd, session string, port int) {
 
 // start listens on 127.0.0.1 and publishes the port in discovery files.
 func (b *bridge) start() {
+	cwd, session, _ := b.sessionState()
 	desiredPort := resolvePort()
 
 	ln, port, err := listenLocal(desiredPort)
@@ -128,7 +131,7 @@ func (b *bridge) start() {
 		return
 	}
 
-	portFiles := writePortFiles(portFilePaths(), port)
+	portFiles := writePortFiles(portFilePaths(cwd), port)
 	if len(portFiles) == 0 {
 		logger.Printf("warning: port file was not written; editors cannot discover the port")
 	}
@@ -155,7 +158,6 @@ func (b *bridge) start() {
 		}
 	}()
 
-	cwd, session, _ := b.sessionState()
 	logger.Printf("listening on http://127.0.0.1:%d (cwd=%s session=%s)", port, cwd, session)
 
 	message := fmt.Sprintf("HTTP bridge listening on port %d", port)
@@ -246,8 +248,9 @@ func stateDir() string {
 }
 
 // portFilePaths returns the primary zot path and the compatible ~/.zot path.
-func portFilePaths() []string {
-	primary := filepath.Join(stateDir(), extensionName+".port")
+func portFilePaths(cwd string) []string {
+	name := portFileName(cwd)
+	primary := filepath.Join(stateDir(), name)
 	paths := []string{primary}
 
 	if strings.TrimSpace(os.Getenv("ZOT_HOME")) != "" {
@@ -257,11 +260,17 @@ func portFilePaths() []string {
 	if err != nil {
 		return paths
 	}
-	legacy := filepath.Join(home, ".zot", extensionName+".port")
+	legacy := filepath.Join(home, ".zot", name)
 	if legacy != primary {
 		paths = append(paths, legacy)
 	}
 	return paths
+}
+
+// portFileName scopes discovery to a project: sha256(cwd)[:8].
+func portFileName(cwd string) string {
+	sum := sha256.Sum256([]byte(filepath.Clean(cwd)))
+	return extensionName + "-" + hex.EncodeToString(sum[:4]) + ".port"
 }
 
 func writePortFiles(paths []string, port int) []string {
@@ -499,7 +508,7 @@ func (b *bridge) handleCommand(id, name string) {
 	if session != "" {
 		lines = append(lines, "  session: "+session)
 	}
-	if paths := portFilePaths(); len(paths) > 0 {
+	if paths := portFilePaths(cwd); len(paths) > 0 {
 		lines = append(lines, "  port file: "+paths[0])
 	}
 

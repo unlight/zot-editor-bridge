@@ -163,6 +163,19 @@ func TestHandleHealth(t *testing.T) {
 	}
 }
 
+func TestPortFileName(t *testing.T) {
+	got := portFileName("/home/roman/Dev/zot-editor-bridge")
+	if want := "editor-bridge-7db538f0.port"; got != want {
+		t.Fatalf("want %q, got %q", want, got)
+	}
+	if portFileName("/home/roman/Dev/zot-editor-bridge/") != got {
+		t.Fatalf("trailing slash must not change the name")
+	}
+	if portFileName("/work/project") == got {
+		t.Fatalf("different cwd must produce a different name")
+	}
+}
+
 func TestPortFilesRespectOtherSessions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, extensionName+".port")

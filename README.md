@@ -42,21 +42,43 @@ On startup the extension tries to bind `127.0.0.1:47831`, unless
 `ZOT_EDITOR_BRIDGE_PORT` is set. If the port is busy, it binds an ephemeral port
 (`:0`) instead.
 
-The chosen port is written to:
+The chosen port is written to a file scoped to the session's absolute `cwd`:
 
-1. `$ZOT_HOME/editor-bridge.port` when `ZOT_HOME` is set.
+```text
+editor-bridge-<cwd-hash>.port
+```
+
+`<cwd-hash>` is the first 8 lowercase hex characters of
+`SHA-256(filepath.Clean(cwd))` encoded as UTF-8. Example: `/work/project` hashes
+to `65d80d2c`, so the file is `editor-bridge-65d80d2c.port`.
+
+Search order:
+
+1. `$ZOT_HOME/editor-bridge-<hash>.port` when `ZOT_HOME` is set.
 2. Otherwise the zot state directory:
-   - Linux: `$XDG_STATE_HOME/zot/editor-bridge.port`, or
-     `~/.local/state/zot/editor-bridge.port`
-   - macOS: `~/Library/Application Support/zot/editor-bridge.port`
-   - Windows: `%LOCALAPPDATA%\zot\editor-bridge.port`
+   - Linux: `$XDG_STATE_HOME/zot/editor-bridge-<hash>.port`, or
+     `~/.local/state/zot/editor-bridge-<hash>.port`
+   - macOS: `~/Library/Application Support/zot/editor-bridge-<hash>.port`
+   - Windows: `%LOCALAPPDATA%\zot\editor-bridge-<hash>.port`
 3. When `ZOT_HOME` is unset, a compatible copy is also written to
-   `~/.zot/editor-bridge.port`.
+   `~/.zot/editor-bridge-<hash>.port`.
 
-Editors can read the file, trim whitespace, and call
-`http://127.0.0.1:<port>/send`. The file is removed on `shutdown`, `SIGINT`, and
-`SIGTERM`, but only when it still contains this process's port. If another zot
-window has overwritten it, the file is left alone.
+Editors compute the hash from their project root and read that file. The project
+root must match zot's `cwd` exactly after `filepath.Clean`; otherwise the hashes
+differ and the editor falls back to another directory or reports "zot not
+running". The file contains only the decimal port.
+
+To confirm the file is live, call `GET /health` and check that `cwd` matches the
+project root. This rejects stale files left by a crashed process and files owned
+by a window whose `cwd` changed.
+
+Two zot windows opened in the same `cwd` share one file name: the last started
+window wins. Windows opened in different project directories get different
+files and are addressed independently.
+
+The file is removed on `shutdown`, `SIGINT`, and `SIGTERM`, but only when it
+still contains this process's port. If another zot window has overwritten it,
+the file is left alone.
 
 To pin a port:
 
@@ -69,7 +91,8 @@ ZOT_EDITOR_BRIDGE_PORT=51234 zot
 ### `GET /health`
 
 ```bash
-PORT=$(cat ~/.local/state/zot/editor-bridge.port)
+HASH=$(printf %s "$PWD" | sha256sum | cut -c1-8)
+PORT=$(cat ~/.local/state/zot/editor-bridge-$HASH.port)
 curl http://127.0.0.1:$PORT/health
 ```
 
