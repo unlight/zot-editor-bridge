@@ -27,29 +27,12 @@ Then change `exec` in `extension.json` to `"./zot-editor-bridge"` and drop the
 
 ## Install
 
-Install directly from GitHub:
-
-```bash
-zot ext install git@github.com:unlight/zot-editor-bridge.git
-```
-
-HTTPS works too:
-
 ```bash
 zot ext install https://github.com/unlight/zot-editor-bridge.git
 ```
 
-Or install from a local checkout:
-
-```bash
-git clone git@github.com:unlight/zot-editor-bridge.git
-cd zot-editor-bridge
-zot ext install .
-```
-
-Either way zot copies or clones the repository into
-`$ZOT_HOME/extensions/zot-editor-bridge/`. The manifest runs `go run .`, so Go
-1.22 or newer must stay available on `PATH`.
+zot clones the repository into `$ZOT_HOME/extensions/zot-editor-bridge/`.
+The manifest runs `go run .`, so Go 1.22 or newer must stay available on `PATH`.
 
 Restart zot. A startup note reports the listening port, and `/editor-bridge`
 shows the current `/send` and `/health` URLs, the session `cwd`, and the port
