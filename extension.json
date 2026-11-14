@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "exec": "go",
   "args": ["run", "."],
-  "command": ["go", "run", "."],
   "language": "go",
   "description": "localhost HTTP bridge that sends editor selections and instructions into the active zot session",
   "enabled": true

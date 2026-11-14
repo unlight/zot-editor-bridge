@@ -163,6 +163,23 @@ func TestHandleHealth(t *testing.T) {
 	}
 }
 
+func TestPortFilePathUsesZotHome(t *testing.T) {
+	t.Setenv("ZOT_HOME", "/tmp/zot-home")
+	want := filepath.Join("/tmp/zot-home", "editor-bridge-7db538f0.port")
+	if got := portFilePath("/home/roman/Dev/zot-editor-bridge"); got != want {
+		t.Fatalf("want %q, got %q", want, got)
+	}
+}
+
+func TestPortFilePathWithoutZotHome(t *testing.T) {
+	t.Setenv("ZOT_HOME", "")
+	t.Setenv("XDG_STATE_HOME", "/tmp/xdg-state")
+	want := filepath.Join("/tmp/xdg-state", "zot", "editor-bridge-7db538f0.port")
+	if got := portFilePath("/home/roman/Dev/zot-editor-bridge"); got != want {
+		t.Fatalf("want %q, got %q", want, got)
+	}
+}
+
 func TestPortFileName(t *testing.T) {
 	got := portFileName("/home/roman/Dev/zot-editor-bridge")
 	if want := "editor-bridge-7db538f0.port"; got != want {
@@ -176,13 +193,12 @@ func TestPortFileName(t *testing.T) {
 	}
 }
 
-func TestPortFilesRespectOtherSessions(t *testing.T) {
+func TestPortFileRespectsOtherSessions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, extensionName+".port")
 
-	written := writePortFiles([]string{path}, 47831)
-	if len(written) != 1 {
-		t.Fatalf("expected one port file, got %v", written)
+	if err := writePortFile(path, 47831); err != nil {
+		t.Fatalf("write port file: %v", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -196,7 +212,7 @@ func TestPortFilesRespectOtherSessions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("50000\n"), 0o600); err != nil {
 		t.Fatalf("rewrite port file: %v", err)
 	}
-	removePortFiles([]string{path}, 47831)
+	removePortFile(path, 47831)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("port file of another session was removed: %v", err)
 	}
@@ -204,7 +220,7 @@ func TestPortFilesRespectOtherSessions(t *testing.T) {
 	if err := os.WriteFile(path, []byte(strconv.Itoa(47831)+"\n"), 0o600); err != nil {
 		t.Fatalf("rewrite port file: %v", err)
 	}
-	removePortFiles([]string{path}, 47831)
+	removePortFile(path, 47831)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("own port file was not removed: %v", err)
 	}

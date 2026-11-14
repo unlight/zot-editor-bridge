@@ -61,7 +61,7 @@ editor-bridge-<cwd-hash>.port
 `SHA-256(filepath.Clean(cwd))` encoded as UTF-8. Example: `/work/project` hashes
 to `65d80d2c`, so the file is `editor-bridge-65d80d2c.port`.
 
-Search order:
+The file is written to:
 
 1. `$ZOT_HOME/editor-bridge-<hash>.port` when `ZOT_HOME` is set.
 2. Otherwise the zot state directory:
@@ -69,8 +69,8 @@ Search order:
      `~/.local/state/zot/editor-bridge-<hash>.port`
    - macOS: `~/Library/Application Support/zot/editor-bridge-<hash>.port`
    - Windows: `%LOCALAPPDATA%\zot\editor-bridge-<hash>.port`
-3. When `ZOT_HOME` is unset, a compatible copy is also written to
-   `~/.zot/editor-bridge-<hash>.port`.
+
+No other locations are written.
 
 Editors compute the hash from their project root and read that file. The project
 root must match zot's `cwd` exactly after `filepath.Clean`; otherwise the hashes
@@ -161,17 +161,12 @@ If zot is busy, the prompt is queued by the host exactly like typed input.
 `"mode": "notify"` sends only the status notification and does not start an
 agent turn.
 
-## Protocol compatibility
+## Protocol
 
 zot protocol v1 expects the extension to send `hello` first, then wait for
 `hello_ack`, register commands, and send `ready`. User text is submitted with
-the `submit` frame. This extension follows that order. The manifest also keeps
-a `command` field for tooling that reads the task-style launch descriptor; zot
-itself uses `exec` and `args`.
-
-Incoming `hello` frames and any frame carrying `session_id` / `cwd` are observed
-as well, so the bridge also works with hosts that include metadata in the
-handshake.
+the `submit` frame. Session metadata is taken from `hello_ack` and lifecycle
+events.
 
 ## Development
 

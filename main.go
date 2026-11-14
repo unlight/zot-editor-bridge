@@ -88,7 +88,7 @@ type bridge struct {
 	cwd      string
 	session  string
 	port     int
-	portFile []string
+	portFile string
 
 	httpServer *http.Server
 	stopOnce   sync.Once
@@ -131,9 +131,9 @@ func (b *bridge) start() {
 		return
 	}
 
-	portFiles := writePortFiles(portFilePaths(cwd), port)
-	if len(portFiles) == 0 {
-		logger.Printf("warning: port file was not written; editors cannot discover the port")
+	portFile := portFilePath(cwd)
+	if err := writePortFile(portFile, port); err != nil {
+		logger.Printf("warning: port file was not written; editors cannot discover the port: %v", err)
 	}
 
 	mux := http.NewServeMux()
@@ -148,7 +148,7 @@ func (b *bridge) start() {
 
 	b.mu.Lock()
 	b.port = port
-	b.portFile = portFiles
+	b.portFile = portFile
 	b.httpServer = srv
 	b.mu.Unlock()
 
@@ -164,13 +164,13 @@ func (b *bridge) start() {
 	b.out.emit(notifyFrame("info", message, true))
 }
 
-// stop shuts the server down and removes port files owned by this process.
+// stop shuts the server down and removes the port file owned by this process.
 func (b *bridge) stop() {
 	b.stopOnce.Do(func() {
 		b.mu.Lock()
 		srv := b.httpServer
 		port := b.port
-		files := b.portFile
+		file := b.portFile
 		b.mu.Unlock()
 
 		if srv != nil {
@@ -180,7 +180,7 @@ func (b *bridge) stop() {
 				logger.Printf("HTTP shutdown: %v", err)
 			}
 		}
-		removePortFiles(files, port)
+		removePortFile(file, port)
 	})
 }
 
@@ -247,24 +247,9 @@ func stateDir() string {
 	}
 }
 
-// portFilePaths returns the primary zot path and the compatible ~/.zot path.
-func portFilePaths(cwd string) []string {
-	name := portFileName(cwd)
-	primary := filepath.Join(stateDir(), name)
-	paths := []string{primary}
-
-	if strings.TrimSpace(os.Getenv("ZOT_HOME")) != "" {
-		return paths
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return paths
-	}
-	legacy := filepath.Join(home, ".zot", name)
-	if legacy != primary {
-		paths = append(paths, legacy)
-	}
-	return paths
+// portFilePath returns the zot state path for this project's port.
+func portFilePath(cwd string) string {
+	return filepath.Join(stateDir(), portFileName(cwd))
 }
 
 // portFileName scopes discovery to a project: sha256(cwd)[:8].
@@ -273,41 +258,27 @@ func portFileName(cwd string) string {
 	return extensionName + "-" + hex.EncodeToString(sum[:4]) + ".port"
 }
 
-func writePortFiles(paths []string, port int) []string {
-	written := make([]string, 0, len(paths))
-	content := []byte(strconv.Itoa(port) + "\n")
-
-	for _, path := range paths {
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-			logger.Printf("create port dir %s: %v", filepath.Dir(path), err)
-			continue
-		}
-		if err := os.WriteFile(path, content, 0o600); err != nil {
-			logger.Printf("write port file %s: %v", path, err)
-			continue
-		}
-		written = append(written, path)
+func writePortFile(path string, port int) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
 	}
-	return written
+	return os.WriteFile(path, []byte(strconv.Itoa(port)+"\n"), 0o600)
 }
 
-// removePortFiles keeps a file that another session has already overwritten.
-func removePortFiles(paths []string, port int) {
+// removePortFile keeps a file that another session has already overwritten.
+func removePortFile(path string, port int) {
 	if port == 0 {
 		return
 	}
-	expected := strconv.Itoa(port)
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		if strings.TrimSpace(string(data)) != expected {
-			continue
-		}
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			logger.Printf("remove port file %s: %v", path, err)
-		}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	if strings.TrimSpace(string(data)) != strconv.Itoa(port) {
+		return
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		logger.Printf("remove port file %s: %v", path, err)
 	}
 }
 
@@ -508,9 +479,7 @@ func (b *bridge) handleCommand(id, name string) {
 	if session != "" {
 		lines = append(lines, "  session: "+session)
 	}
-	if paths := portFilePaths(cwd); len(paths) > 0 {
-		lines = append(lines, "  port file: "+paths[0])
-	}
+	lines = append(lines, "  port file: "+portFilePath(cwd))
 
 	b.out.emit(map[string]any{
 		"type":    "command_response",
@@ -594,7 +563,7 @@ func main() {
 			b.observeFrame(frame)
 
 			switch typeName, _ := frame["type"].(string); typeName {
-			case "hello", "hello_ack":
+			case "hello_ack":
 				if started {
 					continue
 				}
