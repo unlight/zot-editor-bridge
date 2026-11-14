@@ -1,3 +1,4 @@
 /zot-editor-bridge
 *.port
+*.sublime-project
 *.sublime-workspace
