@@ -10,6 +10,13 @@ send it with an instruction, and zot receives it as a normal user prompt.
 - Falls back to an ephemeral port when the default one is taken, so multiple
   zot windows can run side by side.
 
+## Supported editors
+
+- [ZotInstruct](https://github.com/unlight/ZotInstruct)
+
+Any editor or script that can send JSON over HTTP can integrate directly; see
+[HTTP API](#http-api).
+
 ## Requirements
 
 - zot with extension support (tested with zot 0.4.78).
