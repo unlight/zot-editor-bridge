@@ -32,14 +32,9 @@ cd zot-editor-bridge
 zot ext install .
 ```
 
-Restart zot. A startup note reports the listening port, and these slash commands
-become available:
-
-- `/bridge`
-- `/editor-bridge`
-
-Both print the current `/send` and `/health` URLs, the session `cwd`, and the
-port file path.
+Restart zot. A startup note reports the listening port, and `/editor-bridge`
+shows the current `/send` and `/health` URLs, the session `cwd`, and the port
+file path.
 
 ## Port discovery
 

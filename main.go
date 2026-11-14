@@ -474,7 +474,7 @@ func codeFence(code string) string {
 }
 
 func (b *bridge) handleCommand(id, name string) {
-	if name != "bridge" && name != extensionName {
+	if name != extensionName {
 		return
 	}
 
@@ -513,24 +513,12 @@ func (b *bridge) handleCommand(id, name string) {
 
 // register sends command registrations and readiness to the host.
 func (b *bridge) register() {
-	descriptions := map[string]string{
-		"bridge":        "Show HTTP bridge status and port",
-		"editor-bridge": "Show HTTP bridge status and port",
-	}
-	commands := make([]map[string]any, 0, len(descriptions))
-
-	for _, name := range []string{"bridge", "editor-bridge"} {
-		command := map[string]any{
-			"type":        "register_command",
-			"name":        name,
-			"description": descriptions[name],
-		}
-		commands = append(commands, map[string]any{
-			"name":        name,
-			"description": descriptions[name],
-		})
-		b.out.emit(command)
-	}
+	description := "Show HTTP bridge status and port"
+	b.out.emit(map[string]any{
+		"type":        "register_command",
+		"name":        extensionName,
+		"description": description,
+	})
 
 	b.out.emit(map[string]any{
 		"type":   "subscribe",
@@ -538,10 +526,12 @@ func (b *bridge) register() {
 	})
 
 	b.out.emit(map[string]any{
-		"type":     "ready",
-		"name":     extensionName,
-		"version":  extensionVersion,
-		"commands": commands,
+		"type":    "ready",
+		"name":    extensionName,
+		"version": extensionVersion,
+		"commands": []map[string]any{
+			{"name": extensionName, "description": description},
+		},
 	})
 }
 
