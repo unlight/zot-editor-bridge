@@ -12,7 +12,7 @@ send it with an instruction, and zot receives it as a normal user prompt.
 
 ## Supported editors
 
-- [ZotInstruct](https://github.com/unlight/ZotInstruct)
+- [ZotInstruct](https://github.com/unlight/ZotInstruct) for Sublime Text
 
 Any editor or script that can send JSON over HTTP can integrate directly; see
 [HTTP API](#http-api).
