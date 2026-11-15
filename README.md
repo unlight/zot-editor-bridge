@@ -161,13 +161,6 @@ If zot is busy, the prompt is queued by the host exactly like typed input.
 `"mode": "notify"` sends only the status notification and does not start an
 agent turn.
 
-## Protocol
-
-zot protocol v1 expects the extension to send `hello` first, then wait for
-`hello_ack`, register commands, and send `ready`. User text is submitted with
-the `submit` frame. Session metadata is taken from `hello_ack` and lifecycle
-events.
-
 ## Development
 
 ```bash
