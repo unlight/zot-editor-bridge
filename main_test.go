@@ -62,11 +62,11 @@ func TestFormatPromptEscapesCodeFence(t *testing.T) {
 	}
 }
 
-func TestHandleSendPromptMode(t *testing.T) {
+func TestHandleSendSubmitsPrompt(t *testing.T) {
 	var out bytes.Buffer
 	b := newBridge(newOutbound(&out))
 
-	body := `{"code":"package main","instruction":"what is this?","file":"main.go","language":"go"}`
+	body := `{"code":"package main","instruction":"what is this?","file":"main.go","language":"go","mode":"prompt"}`
 	req := httptest.NewRequest(http.MethodPost, "/send", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	b.handleSend(rec, req)
@@ -91,24 +91,6 @@ func TestHandleSendPromptMode(t *testing.T) {
 	}
 }
 
-func TestHandleSendNotifyMode(t *testing.T) {
-	var out bytes.Buffer
-	b := newBridge(newOutbound(&out))
-
-	body := `{"instruction":"just show this","mode":"notify"}`
-	req := httptest.NewRequest(http.MethodPost, "/send", strings.NewReader(body))
-	rec := httptest.NewRecorder()
-	b.handleSend(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	frames := decodeFrames(t, out.Bytes())
-	if len(frames) != 1 || frames[0]["type"] != "notify" {
-		t.Fatalf("expected a single notify frame, got %v", frames)
-	}
-}
-
 func TestHandleSendValidation(t *testing.T) {
 	cases := []struct {
 		name string
@@ -119,7 +101,8 @@ func TestHandleSendValidation(t *testing.T) {
 		{"blank fields", `{"code":"  ","instruction":" "}`, http.StatusBadRequest},
 		{"invalid json", `{"instruction":`, http.StatusBadRequest},
 		{"empty body", ``, http.StatusBadRequest},
-		{"bad mode", `{"instruction":"x","mode":"chat"}`, http.StatusBadRequest},
+		{"unknown mode", `{"instruction":"x","mode":"chat"}`, http.StatusBadRequest},
+		{"notify mode", `{"instruction":"x","mode":"notify"}`, http.StatusBadRequest},
 		{"oversized", strings.Repeat("a", maxRequestBody+64), http.StatusRequestEntityTooLarge},
 	}
 
@@ -133,6 +116,9 @@ func TestHandleSendValidation(t *testing.T) {
 
 			if rec.Code != tc.want {
 				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if out.Len() != 0 {
+				t.Fatalf("rejected request emitted frames: %s", out.String())
 			}
 		})
 	}

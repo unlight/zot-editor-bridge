@@ -1,7 +1,6 @@
 // editor-bridge: HTTP bridge between an editor and the active zot session.
 //
-// The extension runs a local HTTP server and turns POST /send into a user
-// prompt (submit frame) or a status notification (notify frame).
+// The extension runs a local HTTP server and turns POST /send into a user prompt.
 package main
 
 import (
@@ -326,13 +325,9 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode := strings.ToLower(strings.TrimSpace(req.Mode))
-	if mode == "" {
-		mode = "prompt"
-	}
-	if mode != "prompt" && mode != "notify" {
+	if mode := strings.ToLower(strings.TrimSpace(req.Mode)); mode != "" && mode != "prompt" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{
-			"ok": false, "error": `mode must be "prompt" or "notify"`,
+			"ok": false, "error": `mode must be "prompt" when set`,
 		})
 		return
 	}
@@ -343,20 +338,16 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		label = "no file"
 	}
 
-	frames := []map[string]any{
+	// The real zot protocol accepts user text through the submit frame.
+	b.out.emit(
 		notifyFrame("info", "Editor request: "+label, false),
-	}
-	if mode == "prompt" {
-		// The real zot protocol accepts user text through the submit frame.
-		frames = append(frames, map[string]any{"type": "submit", "text": text})
-	}
-	b.out.emit(frames...)
+		map[string]any{"type": "submit", "text": text},
+	)
 
 	_, session, port := b.sessionState()
-	logger.Printf("accepted %s request (mode=%s file=%s bytes=%d)", extensionName, mode, label, len(text))
+	logger.Printf("accepted %s request (file=%s bytes=%d)", extensionName, label, len(text))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":         true,
-		"mode":       mode,
 		"port":       port,
 		"session_id": session,
 	})

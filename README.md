@@ -133,16 +133,16 @@ Fields:
 | `code` | one of `instruction` / `code` | selected code or text |
 | `file` | no | file path shown to the agent |
 | `language` | no | code fence language |
-| `mode` | no | `prompt` (default) or `notify` |
+| `mode` | no | must be `prompt` or omitted; `notify` is rejected |
 
 The request is rejected with HTTP 400 when the JSON is malformed, `mode` is
-unknown, or both `instruction` and `code` are blank. Bodies over 1 MiB return
-HTTP 413.
+set to anything other than `prompt`, or both `instruction` and `code` are blank.
+Bodies over 1 MiB return HTTP 413.
 
 Response:
 
 ```json
-{"mode":"prompt","ok":true,"port":47831,"session_id":"LX347S3QQXA2XVCKVEW7K2GLCI"}
+{"ok":true,"port":47831,"session_id":"LX347S3QQXA2XVCKVEW7K2GLCI"}
 ```
 
 The extension first pushes an `info` notification, then formats the request as
@@ -158,8 +158,6 @@ fmt.Println("hi")
 ````
 
 If zot is busy, the prompt is queued by the host exactly like typed input.
-`"mode": "notify"` sends only the status notification and does not start an
-agent turn.
 
 ## Development
 
