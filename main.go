@@ -76,7 +76,6 @@ type sendRequest struct {
 	Instruction string `json:"instruction"`
 	File        string `json:"file"`
 	Language    string `json:"language"`
-	Mode        string `json:"mode"`
 }
 
 // bridge holds session metadata and the HTTP server state.
@@ -322,13 +321,6 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-
-	if mode := strings.ToLower(strings.TrimSpace(req.Mode)); mode != "" && mode != "prompt" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{
-			"ok": false, "error": `mode must be "prompt" when set`,
-		})
 		return
 	}
 

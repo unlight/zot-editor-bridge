@@ -133,11 +133,9 @@ Fields:
 | `code` | one of `instruction` / `code` | selected code or text |
 | `file` | no | file path shown to the agent |
 | `language` | no | code fence language |
-| `mode` | no | must be `prompt` or omitted; `notify` is rejected |
 
-The request is rejected with HTTP 400 when the JSON is malformed, `mode` is
-set to anything other than `prompt`, or both `instruction` and `code` are blank.
-Bodies over 1 MiB return HTTP 413.
+The request is rejected with HTTP 400 when the JSON is malformed or both
+`instruction` and `code` are blank. Bodies over 1 MiB return HTTP 413.
 
 Response:
 

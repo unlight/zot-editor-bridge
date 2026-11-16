@@ -66,7 +66,7 @@ func TestHandleSendSubmitsPrompt(t *testing.T) {
 	var out bytes.Buffer
 	b := newBridge(newOutbound(&out))
 
-	body := `{"code":"package main","instruction":"what is this?","file":"main.go","language":"go","mode":"prompt"}`
+	body := `{"code":"package main","instruction":"what is this?","file":"main.go","language":"go"}`
 	req := httptest.NewRequest(http.MethodPost, "/send", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	b.handleSend(rec, req)
@@ -91,6 +91,25 @@ func TestHandleSendSubmitsPrompt(t *testing.T) {
 	}
 }
 
+func TestHandleSendIgnoresLegacyMode(t *testing.T) {
+	var out bytes.Buffer
+	b := newBridge(newOutbound(&out))
+
+	// Older clients may still send mode; it is ignored, not interpreted.
+	body := `{"instruction":"x","mode":"notify"}`
+	req := httptest.NewRequest(http.MethodPost, "/send", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	b.handleSend(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	frames := decodeFrames(t, out.Bytes())
+	if len(frames) != 2 || frames[1]["type"] != "submit" {
+		t.Fatalf("expected notify and submit frames, got %v", frames)
+	}
+}
+
 func TestHandleSendValidation(t *testing.T) {
 	cases := []struct {
 		name string
@@ -101,8 +120,6 @@ func TestHandleSendValidation(t *testing.T) {
 		{"blank fields", `{"code":"  ","instruction":" "}`, http.StatusBadRequest},
 		{"invalid json", `{"instruction":`, http.StatusBadRequest},
 		{"empty body", ``, http.StatusBadRequest},
-		{"unknown mode", `{"instruction":"x","mode":"chat"}`, http.StatusBadRequest},
-		{"notify mode", `{"instruction":"x","mode":"notify"}`, http.StatusBadRequest},
 		{"oversized", strings.Repeat("a", maxRequestBody+64), http.StatusRequestEntityTooLarge},
 	}
 
